@@ -5,8 +5,9 @@ import warnings
 from message_filters import Subscriber
 from skspatial.objects import Line as Line3D
 
-from stalk_detect.config import INLIER_THRESHOLD, MAX_LINE_RANSAC_ITERATIONS, MAX_X, MIN_X, MAX_Y, MIN_Y
+from skimage.measure import LineModelND, ransac
 
+from stalk_detect.config import INLIER_THRESHOLD, MAX_LINE_RANSAC_ITERATIONS, MAX_X, MIN_X, MAX_Y, MIN_Y
 
 # Line object, with a slope and intercept
 class Line:
@@ -42,6 +43,34 @@ def ransac_3d(points):
     inliers = points[line[2]]
 
     return Line(line[0], line[1], points=inliers)
+
+def ransac_2d(points):
+    '''
+    Perform RANSAC line detection on a set of 2D points
+
+    Parameters
+        points (list[Point]): The points to perform RANSAC on
+
+    Returns
+        Line: The best line found
+    '''
+
+    points = np.array([[p.x, p.y] for p in points])
+    
+    model = LineModelND()
+    model.estimate(points)
+
+    model_robust, inliers = ransac(points, LineModelND, min_samples=2,
+                               residual_threshold=1, max_trials=MAX_LINE_RANSAC_ITERATIONS)
+
+    x = np.array([0, 1])
+    y = model_robust.predict_y([0, 1])
+
+    slope = (y[1] - y[0]) / (x[1] - x[0])
+    intercept = model_robust.predict_x([0])
+    inlier_points = points[inliers]
+
+    return slope, intercept, inlier_points
 
 
 def fit_line(points):
@@ -91,7 +120,7 @@ class Stalk:
 
     A Stalk is always in camera frame
     '''
-    def __init__(self, points: 'list[Point]', score: float, mask: np.ndarray):
+    def __init__(self, points: 'list[Point]', score: float, mask: np.ndarray, width: float):
         self.points = points
         self.valid = True
         try:
@@ -100,13 +129,15 @@ class Stalk:
             self.valid = False
         self.score = score
         self.mask = mask
+        self.width = width
 
     def is_valid(self):
         return self.valid
 
     def is_within_bounds(self) -> bool:
-        return max([p.x for p in self.points]) <= MAX_X and min([p.x for p in self.points]) >= MIN_X and \
-            max([p.y for p in self.points]) <= MAX_Y and min([p.y for p in self.points]) >= MIN_Y
+        return True
+        # return max([p.x for p in self.points]) <= MAX_X and min([p.x for p in self.points]) >= MIN_X and \
+        #     max([p.y for p in self.points]) <= MAX_Y and min([p.y for p in self.points]) >= MIN_Y
 
 
 class KillableSubscriber(Subscriber):

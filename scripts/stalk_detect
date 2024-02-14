@@ -30,9 +30,8 @@ from stalk_detect.model import MaskRCNN
 from stalk_detect.srv import GetStalk, GetStalkRequest, GetStalkResponse
 from stalk_detect.msg import stalk as stalk_msg, line as line_msg
 from stalk_detect.transforms import TfBuffer, Transformer
-from stalk_detect.utils import KillableSubscriber, Stalk
+from stalk_detect.utils import KillableSubscriber, Stalk, ransac_2d
 from stalk_detect.visualize import Visualizer
-
 
 class DetectNode:
     @classmethod
@@ -388,6 +387,8 @@ class DetectNode:
 
             cls.image_index += 1
 
+            rospy.logwarn("IMAGE CAPTURED")
+
             # Run the model
             masks, output, scores = cls.run_detection(image)
 
@@ -399,9 +400,43 @@ class DetectNode:
             # if VISUALIZE:
                 # cv.imwrite('masks/IMAGE{}-{}.png'.format(cls.call_index, cls.image_index), cv_image)
                 # cv.imwrite('masks/DEPTH{}-{}.png'.format(cls.call_index, cls.image_index), cv_depth_image)
+                # np.save('MASK{}-{}.png'.format(cls.call_index, cls.image_index), masks)
 
             # region Feature extraction
             stalks_features: list[list[Point]] = cls.get_features(masks, cv_depth_image)
+
+            stalk_widths = []
+            for i, stalk_features in enumerate(stalks_features):
+                slope, _, _ = ransac_2d(stalk_features)
+                perp_slope = -1 / slope
+
+                mask = masks[i]
+                nonzero = np.nonzero(mask)
+                x0 = nonzero[1].min() # MIN X
+                y1 = nonzero[0].min() # MIN Y
+                x2 = nonzero[1].max() # MAX X
+                x3, y3 = (nonzero[1][np.argmax(nonzero[0])], nonzero[0].max()) # MAX Y AND CORRESPONDING X
+
+                widths = []
+                # Loop bottom to top of mask
+                max_y = int(y1 - abs((x0-x2) * perp_slope))
+                min_y = int(y3 + abs((x0-x2) * perp_slope))
+                for i in range(min_y, max_y, -1): # MOTIVATE Y LIMITS BY NECESSARY X VALUES
+                    # Loop across every line
+                    count = 0
+                    for j in range(x0-x2, x2-x0):
+                        test_x, test_y = (int(j + x3), int(i + perp_slope * j))
+                        try:
+                            if mask[test_y, test_x]:
+                                mask[test_y, test_x] = 125
+                                count += 1
+                        except:
+                            pass
+                    if count > 0:
+                        widths.append(count)
+
+                rospy.logwarn("Median Width = {} px".format(np.median(widths)))
+                stalk_widths.append(np.median(widths))
 
             # Visualize the stalks features on the image
             if VISUALIZE:
@@ -420,8 +455,8 @@ class DetectNode:
 
             # Turn these features into stalks
             stalks = []
-            for stalk, score, mask in zip(stalks_features, scores, masks):
-                new_stalk = Stalk(points=stalk, score=score, mask=mask)
+            for stalk, score, mask, width in zip(stalks_features, scores, masks, stalk_widths):
+                new_stalk = Stalk(points=stalk, score=score, mask=mask, width=width)
 
                 # Ensure the stalk is valid, in case RANSAC failed
                 if new_stalk.is_valid():
@@ -540,7 +575,7 @@ class DetectNode:
         cls.stop_realsense()
         stalk_line_msg = line_msg(slope=Vector3(x=best_stalk.line.slope[0], y=best_stalk.line.slope[1], z=best_stalk.line.slope[2]),
                                   intercept=Vector3(x=best_stalk.line.intercept[0], y=best_stalk.line.intercept[1], z=best_stalk.line.intercept[2]))
-        return GetStalkResponse(success='DONE', stalk=stalk_msg(stalk_line=stalk_line_msg),
+        return GetStalkResponse(success='DONE', stalk=stalk_msg(stalk_line=stalk_line_msg, width_z0=best_stalk.width),
                                 confidence=best_stalk.score, num_frames=cls.image_index + 1)
 
 

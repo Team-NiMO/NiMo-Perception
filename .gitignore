@@ -12,3 +12,4 @@ shims
 viz/*
 model_final.pth
 masks/*
+src/stalk_detect/config.py

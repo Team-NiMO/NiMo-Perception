@@ -54,11 +54,11 @@ The code is separated into 3 steps, as shown below.
 To get this node up and running, you'll need to prepare the following:
 1. Install [Detectron2](https://detectron2.readthedocs.io/en/latest/tutorials/install.html), which requires CUDA and torch. Detectron2 also works with torch installed for CPU, if you do not have a GPU. We recommend building Detectron2 from source.
 2. Install all package dependencies, which are in requirements.txt.
-3. If desired, replace the [first line](https://github.com/aaronzberger/CMU_Find_Stalk/blob/main/scripts/main#LL1C11-L1C11) of `main.py` with your Python interpreter path
+3. If desired, replace the [first line](https://github.com/aaronzberger/CMU_Find_Stalk/blob/main/scripts/main#LL1C11-L1C11) of `scripts/stalk_detect.py` with your Python interpreter path
 4. Fill in the configuration file with your desired parameters: specifically, make sure to edit the [`MODEL_PATH`](https://github.com/aaronzberger/CMU_Find_Stalk/blob/fca1f3f9c3d962b5cb712d720bd9cb57dc0e9a0c/src/config.py#L36), the [TF frames](https://github.com/aaronzberger/CMU_Find_Stalk/blob/fca1f3f9c3d962b5cb712d720bd9cb57dc0e9a0c/src/config.py#L46:L50), the image and depth image [topics](https://github.com/aaronzberger/CMU_Find_Stalk/blob/fca1f3f9c3d962b5cb712d720bd9cb57dc0e9a0c/src/config.py#L42:L45), and the constraints on stalk distance.
-5. Ensure the `main.py` script is executable, run `catkin_make`, start up your `roscore`, and run:
+5. Ensure the `stalk_detect` script is executable, run `catkin_make`, start up your `roscore`, and run:
   
-  `rosrun stalk_detect main.py`
+  `rosrun stalk_detect stalk_detect`
 
 ## Dataset
 We recommend training on a large number of images for robustness in deployment. With the labeling tool provided below, labeling is very quick, and 500 images should take no more than a few hours.
