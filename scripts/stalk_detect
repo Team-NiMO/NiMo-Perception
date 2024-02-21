@@ -396,19 +396,25 @@ class DetectNode:
             cv_depth_image = np.array(cv_depth_image, dtype=np.float32)
             cv_image = cls.cv_bridge.imgmsg_to_cv2(image, desired_encoding='rgb8')
 
-            # Display image and depth
+            # # Display image and depth
             # if VISUALIZE:
-                # cv.imwrite('masks/IMAGE{}-{}.png'.format(cls.call_index, cls.image_index), cv_image)
-                # cv.imwrite('masks/DEPTH{}-{}.png'.format(cls.call_index, cls.image_index), cv_depth_image)
-                # np.save('MASK{}-{}.png'.format(cls.call_index, cls.image_index), masks)
+            #     cv.imwrite('MASKED{}-{}.png'.format(cls.call_index, cls.image_index), cls.model.visualize(cv.cvtColor(cv_image, cv.COLOR_RGB2BGR, cv_image), output).astype(np.uint8))
+            #     cv.imwrite('IMAGE{}-{}.png'.format(cls.call_index, cls.image_index), cv_image)
+            #     cv.imwrite('DEPTH{}-{}.png'.format(cls.call_index, cls.image_index), cv_depth_image)
+            #     np.save('MASK{}-{}.png'.format(cls.call_index, cls.image_index), masks)
 
             # region Feature extraction
             stalks_features: list[list[Point]] = cls.get_features(masks, cv_depth_image)
 
             stalk_widths = []
             for i, stalk_features in enumerate(stalks_features):
+                if len(stalk_features) == 0:
+                    continue
+
                 slope, _, _ = ransac_2d(stalk_features)
                 perp_slope = -1 / slope
+
+                rospy.logwarn(perp_slope)
 
                 mask = masks[i]
                 nonzero = np.nonzero(mask)
@@ -424,18 +430,21 @@ class DetectNode:
                 for i in range(min_y, max_y, -1): # MOTIVATE Y LIMITS BY NECESSARY X VALUES
                     # Loop across every line
                     count = 0
+                    depths = []
                     for j in range(x0-x2, x2-x0):
                         test_x, test_y = (int(j + x3), int(i + perp_slope * j))
                         try:
                             if mask[test_y, test_x]:
                                 mask[test_y, test_x] = 125
                                 count += 1
+                                if cv_depth_image[test_y, test_x] != 0:
+                                    depths.append(cv_depth_image[test_y, test_x])
                         except:
                             pass
-                    if count > 0:
-                        widths.append(count)
+                    if count > 0 and len(depths) > 0:
+                        widths.append(count * np.median(depths) * 0.0036) # MAGIC NUM FIX LATER
 
-                rospy.logwarn("Median Width = {} px".format(np.median(widths)))
+                rospy.logwarn("Median Width = {} mm".format(np.median(widths)))
                 stalk_widths.append(np.median(widths))
 
             # Visualize the stalks features on the image
