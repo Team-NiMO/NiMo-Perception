@@ -212,6 +212,7 @@ class DetectNode:
         best_stalks = [stalks[i] for i in best_cluster_index]
 
         # TODO: Intelligently choose a representative stalk from the cluster
+        best_stalks[0].width = np.average([stalk.width for stalk in best_stalks])
 
         return best_stalks[0]
 
@@ -398,10 +399,10 @@ class DetectNode:
 
             # # Display image and depth
             # if VISUALIZE:
-            #     cv.imwrite('MASKED{}-{}.png'.format(cls.call_index, cls.image_index), cls.model.visualize(cv.cvtColor(cv_image, cv.COLOR_RGB2BGR, cv_image), output).astype(np.uint8))
-            #     cv.imwrite('IMAGE{}-{}.png'.format(cls.call_index, cls.image_index), cv_image)
-            #     cv.imwrite('DEPTH{}-{}.png'.format(cls.call_index, cls.image_index), cv_depth_image)
-            #     np.save('MASK{}-{}.png'.format(cls.call_index, cls.image_index), masks)
+            #     cv.imwrite('output/MASKED{}-{}.png'.format(cls.call_index, cls.image_index), cls.model.visualize(cv.cvtColor(cv_image, cv.COLOR_RGB2BGR, cv_image), output).astype(np.uint8))
+            #     cv.imwrite('output/IMAGE{}-{}.png'.format(cls.call_index, cls.image_index), cv_image)
+            #     cv.imwrite('output/DEPTH{}-{}.png'.format(cls.call_index, cls.image_index), cv_depth_image)
+            #     np.save('output/MASK{}-{}.png'.format(cls.call_index, cls.image_index), masks)
 
             # region Feature extraction
             stalks_features: list[list[Point]] = cls.get_features(masks, cv_depth_image)
@@ -414,8 +415,6 @@ class DetectNode:
                 slope, _, _ = ransac_2d(stalk_features)
                 perp_slope = -1 / slope
 
-                rospy.logwarn(perp_slope)
-
                 mask = masks[i]
                 nonzero = np.nonzero(mask)
                 x0 = nonzero[1].min() # MIN X
@@ -424,6 +423,7 @@ class DetectNode:
                 x3, y3 = (nonzero[1][np.argmax(nonzero[0])], nonzero[0].max()) # MAX Y AND CORRESPONDING X
 
                 widths = []
+                px_widths = []
                 # Loop bottom to top of mask
                 max_y = int(y1 - abs((x0-x2) * perp_slope))
                 min_y = int(y3 + abs((x0-x2) * perp_slope))
@@ -443,8 +443,10 @@ class DetectNode:
                             pass
                     if count > 0 and len(depths) > 0:
                         widths.append(count * np.median(depths) * 0.0036) # MAGIC NUM FIX LATER
+                        px_widths.append(count)
 
                 rospy.logwarn("Median Width = {} mm".format(np.median(widths)))
+                rospy.logwarn("Median Width = {} px".format(np.median(px_widths)))
                 stalk_widths.append(np.median(widths))
 
             # Visualize the stalks features on the image
@@ -507,6 +509,11 @@ class DetectNode:
 
                     if min([pt.y for pt in ordered_right_to_left[i].points]) - max([pt.y for pt in ordered_right_to_left[j].points]) < GRIPPER_WIDTH and \
                             min([pt.x for pt in ordered_right_to_left[j].points]) - max([pt.x for pt in ordered_right_to_left[i].points]) < GRIPPER_LENGTH_PAST_STALK:
+                        is_free = False
+                        break
+
+                    # Filter out stalks of unsuitable width
+                    if ordered_right_to_left[i].width < 12 or ordered_right_to_left[i].width > 45:
                         is_free = False
                         break
 
