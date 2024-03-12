@@ -4,10 +4,10 @@ from enum import Enum
 
 GraspPointFindingOptions = Enum(
     'GraspPointFindingOptions',
-    ['mask_only', 'mask_projection', 'ransac_ground_plane', 'segment_ground_plane'])
+    ['mask_only', 'mask_projection'])
 
 BestStalkOptions = Enum(
-    'BestStalkOptions', ['largest', 'largest_favorable', 'combine_pcls'])
+    'BestStalkOptions', ['largest', 'largest_favorable'])
 
 RUN_REALSENSE_ON_REQUEST = False
 DRIVER_COMMAND = ['roslaunch', 'realsense2_camera', 'rs_camera_pcloud.launch']
@@ -46,6 +46,8 @@ SCORE_THRESHOLD = 0.6
 CUDA_DEVICE_NO = -1
 
 VISUALIZE = True
+VERBOSE = False
+SAVE_IMAGES = False
 
 IMAGE_TOPIC = '/camera/color/image_raw'
 DEPTH_TOPIC = '/camera/depth/image_rect_raw'

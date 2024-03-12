@@ -22,7 +22,7 @@ You can select the desired options for each pipeline step in [`src/config.py`](h
 The options are described in more detail [below](#pipeline).
 
 ### Service
-This ROS node registers a ROS [service](http://wiki.ros.org/Services), which allows a request-reply communication between two nodes. In this case, this node publishes the service `get_stalk`, which receives a number of frames and a timeout, and returns the stalk positions and other information. This service is defined [here](https://github.com/aaronzberger/CMU_Find_Stalk/blob/main/srv/GetStalk.srv).
+This ROS node registers two ROS [services](http://wiki.ros.org/Services), which allows a request-reply communication between two nodes. In this case, this node publishes the service `get_stalk` and `get_width`, which both receive a number of frames and a timeout. `get_stalk` returns the success of the operation, the number of frames used, and a list of grasp points from suitable cornstalks. `get_width` returns the success of the operation, the number of frames used, and the width of the cornstalk These services are defined [here](https://github.com/aaronzberger/CMU_Find_Stalk/blob/main/srv/).
 
 A node can wait for this service to be available and then "call" it and await a response. Alternatively, a node can make a *persistent connection* to a service, which maintains the communication between nodes and does not re-search for the node at each subsequent service request (this can increase performance when the service is being called multiple times from the same node).
 
