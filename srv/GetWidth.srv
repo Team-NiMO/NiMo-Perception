@@ -3,4 +3,4 @@ float64 timeout
 ---
 string success
 uint16 num_frames
-stalk_detect/grasp_point[] grasp_points
+float64 width

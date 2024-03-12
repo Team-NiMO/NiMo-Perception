@@ -19,14 +19,14 @@ catkin_python_setup()
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  line.msg
-  stalk.msg
+  grasp_point.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
   GetStalk.srv
+  GetWidth.srv
 )
 
 ## Generate added messages and services with any dependencies listed here
