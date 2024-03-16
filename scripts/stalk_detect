@@ -580,7 +580,7 @@ class DetectNode:
 
         #  Cluster the positions, find the best one, average it
         if len(stalk_widths) == 0:
-            rospy.logwarn('No valid stalks detected on frame {} ({} total stalks found)'.format(cls.image_index, len(stalks)))
+            rospy.logwarn('No valid stalks detected on frame {} ({} total stalks found)'.format(cls.image_index, len(stalk_widths)))
             cls.stop_realsense()
             return GetWidthResponse(success='REPOSITION', num_frames=cls.image_index + 1)
 
