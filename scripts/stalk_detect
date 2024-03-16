@@ -17,7 +17,6 @@ from cv_bridge import CvBridge
 from geometry_msgs.msg import Point, Vector3, Pose2D
 from message_filters import ApproximateTimeSynchronizer
 from sensor_msgs.msg import CameraInfo, Image
-from termcolor import colored
 
 from stalk_detect.config import (BEST_STALK_ALGO, CAMERA_INFO, DEPTH_SCALE,
                                  DEPTH_TOPIC, DEPTH_TRUNC, DRIVER_COMMAND,
