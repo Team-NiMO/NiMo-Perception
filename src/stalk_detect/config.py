@@ -41,13 +41,13 @@ MIN_Y = -0.07
 MAX_Y = 0.25
 
 # Model parameters
-MODEL_PATH = '/home/thomasdetlefsen/NiMo/src/NiMo-Perception/model_field_day1.pth'
+MODEL_PATH = '/home/nimo/nimo_ws/src/NiMo-Perception/model_field_day1.pth'
 SCORE_THRESHOLD = 0.6
 CUDA_DEVICE_NO = -1
 
 VISUALIZE = True
-VERBOSE = False
-SAVE_IMAGES = False
+VERBOSE = True
+SAVE_IMAGES = True
 
 IMAGE_TOPIC = '/camera/color/image_raw'
 DEPTH_TOPIC = '/camera/depth/image_rect_raw'
@@ -55,10 +55,10 @@ CAMERA_INFO = '/camera/color/camera_info'
 DEPTH_CAMERA_INFO = '/camera/depth/camera_info'
 CAMERA_FRAME = 'camera_link'
 BASE_FRAME = 'link_base'
-WORLD_FRAME = 'camera_link' # TEMPORARY FOR TESTING SHOULD BE 'world'
+WORLD_FRAME = 'link_base' # TEMPORARY FOR TESTING SHOULD BE 'world'
 CAMERA_COLOR_FRAME = 'camera_color_frame'
 POINTCLOUD_TOPIC = '/camera/pointcloud/points'
 
 # Select the algorithms to use
-GRASP_POINT_ALGO = GraspPointFindingOptions.mask_projection
+GRASP_POINT_ALGO = GraspPointFindingOptions.mask_only
 BEST_STALK_ALGO = BestStalkOptions.largest_favorable

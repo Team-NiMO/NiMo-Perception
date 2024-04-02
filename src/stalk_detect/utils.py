@@ -134,7 +134,7 @@ class Stalk:
             return
 
         # Retrieve the point above the lowest point
-        goal_height = min_height + OPTIMAL_STALK_HEIGHT
+        goal_height = min_height - OPTIMAL_STALK_HEIGHT
 
         # Find the point on the line at this height
         x, y = find_xy_from_z(self.line, goal_height)

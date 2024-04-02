@@ -57,7 +57,7 @@ class DetectNode:
         try:
             rospy.wait_for_message(CAMERA_INFO, CameraInfo, timeout=5)
         except rospy.ROSException:
-            rospy.logwarn('Camera info not found, so camera is likely not running!', 'yellow')
+            rospy.logwarn('Camera info not found, so camera is likely not running!')
 
         if VERBOSE: rospy.loginfo('Waiting for service calls...')
 
@@ -326,17 +326,17 @@ class DetectNode:
             cv_depth_image = np.array(cv_depth_image, dtype=np.float32)
             cv_image = cls.cv_bridge.imgmsg_to_cv2(image, desired_encoding='rgb8')
 
+            # Run model, extract features, get widths
+            masks, output, scores = cls.run_detection(image)
+            stalks_features: list[list[Any]] = cls.get_features(masks)
+            stalk_widths = cls.get_widths(stalks_features, masks, cv_depth_image)
+
             # Save image, masked image, mask, and depth image
             if SAVE_IMAGES:
                 cv.imwrite('output/MASKED{}-{}.png'.format(cls.call_index, cls.image_index), cls.model.visualize(cv.cvtColor(cv_image, cv.COLOR_RGB2BGR, cv_image), output).astype(np.uint8))
                 cv.imwrite('output/IMAGE{}-{}.png'.format(cls.call_index, cls.image_index), cv_image)
                 cv.imwrite('output/DEPTH{}-{}.png'.format(cls.call_index, cls.image_index), cv_depth_image)
                 np.save('output/MASK{}-{}.png'.format(cls.call_index, cls.image_index), masks)
-
-            # Run model, extract features, get widths
-            masks, output, scores = cls.run_detection(image)
-            stalks_features: list[list[Any]] = cls.get_features(masks)
-            stalk_widths = cls.get_widths(stalks_features, masks, cv_depth_image)
 
             # Visualize the stalks features on the image
             if VISUALIZE:
@@ -370,16 +370,10 @@ class DetectNode:
                 # Ensure the stalk is valid, in case RANSAC failed
                 if new_stalk.is_valid():
                     stalks.append(new_stalk)
-            
-            if VISUALIZE and len(stalks_features):
-                cls.visualizer.new_frame()
-                cls.visualizer.publish_item('features', stalks_features, marker_color=[255, 0, 0])
-                for stalk in stalks:
-                    cls.visualizer.publish_item('stalk_lines', stalk, marker_color=[255, 255, 0], marker_size=0.01)
 
             if GRASP_POINT_ALGO == GraspPointFindingOptions.mask_only:
                 for stalk in stalks:
-                    stalk.set_grasp_point(min_height=min([p.z for p in stalk.points]))
+                    stalk.set_grasp_point(min_height=max([p.z for p in stalk.points]))
             elif GRASP_POINT_ALGO == GraspPointFindingOptions.mask_projection:
                 for stalk in stalks:
                     stalk.set_grasp_point(min_height=0)
@@ -391,7 +385,14 @@ class DetectNode:
                 stalk.set_cam_grasp_point(transformer.transform_world_to_cam(stalk.grasp_point))
 
             # Filter out stalks that are not within the bounds of the camera
-            valid_stalks: list[Stalk] = [s for s in stalks if s.is_within_bounds()]
+            # valid_stalks: list[Stalk] = [s for s in stalks if s.is_within_bounds() and s.score > 0.95]
+            valid_stalks: list[Stalk] = [s for s in stalks if s.score > 0.95]
+
+            if VISUALIZE and len(stalks_features):
+                cls.visualizer.new_frame()
+                cls.visualizer.publish_item('features', stalks_features, marker_color=[255, 0, 0])
+                for stalk in valid_stalks:
+                    cls.visualizer.publish_item('stalk_lines', stalk, marker_color=[255, 255, 0], marker_size=0.01)
 
             if len(valid_stalks) == 0:
                 rospy.logwarn('No valid stalks detected on frame {} ({} total stalks found)'.format(cls.image_index, len(stalks)))
@@ -450,11 +451,13 @@ class DetectNode:
 
 
             if VISUALIZE:
-                    cls.visualizer.publish_item('grasp_points', [best_stalk.grasp_point], marker_color=[255, 0, 255], marker_size=0.02)
+                    for stalk in graspable_stalks:
+                        cls.visualizer.publish_item('grasp_points', [stalk.grasp_point], marker_color=[255, 0, 255], marker_size=0.02)
 
             if BEST_STALK_ALGO in [BestStalkOptions.largest, BestStalkOptions.largest_favorable]:
                 for stalk, weight in zip(graspable_stalks, stalk_weights):
-                    positions.append(transformer.transform_world_to_cam(stalk.grasp_point))
+                    # positions.append(transformer.transform_world_to_cam(stalk.grasp_point))
+                    positions.append(stalk.grasp_point)
                     weights.append(weight)
 
         # Setup the callback for the images and depth images
@@ -546,17 +549,17 @@ class DetectNode:
             cv_depth_image = np.array(cv_depth_image, dtype=np.float32)
             cv_image = cls.cv_bridge.imgmsg_to_cv2(image, desired_encoding='rgb8')
 
+            # Run model, extract features, get widths
+            masks, output, _ = cls.run_detection(image)
+            stalks_features = cls.get_features(masks)
+            widths = cls.get_widths(stalks_features, masks, cv_depth_image)
+
             # Save image, masked image, mask, and depth image
             if SAVE_IMAGES:
                 cv.imwrite('output/MASKED{}-{}.png'.format(cls.call_index, cls.image_index), cls.model.visualize(cv.cvtColor(cv_image, cv.COLOR_RGB2BGR, cv_image), output).astype(np.uint8))
                 cv.imwrite('output/IMAGE{}-{}.png'.format(cls.call_index, cls.image_index), cv_image)
                 cv.imwrite('output/DEPTH{}-{}.png'.format(cls.call_index, cls.image_index), cv_depth_image)
                 np.save('output/MASK{}-{}.png'.format(cls.call_index, cls.image_index), masks)
-
-            # Run model, extract features, get widths
-            masks, output, _ = cls.run_detection(image)
-            stalks_features = cls.get_features(masks)
-            widths = cls.get_widths(stalks_features, masks, cv_depth_image)
 
             for width in widths:
                 stalk_widths.append(width)
