@@ -132,7 +132,12 @@ class DetectNode:
                 if len(stalk_features) == 0:
                     continue
 
-                slope, _, _ = ransac_2d(stalk_features)
+                try:
+                    slope, _, _ = ransac_2d(stalk_features)
+                except:
+                    stalk_widths.append(np.median(-1))
+                    continue
+
                 perp_slope = -1 / slope
 
                 mask = masks[i]
@@ -170,7 +175,6 @@ class DetectNode:
                 stalk_widths.append(np.median(widths))
 
         return stalk_widths
-
 
     @classmethod
     def determine_best_stalk(cls, positions: 'list[Point]', weights) -> Point:
@@ -334,9 +338,6 @@ class DetectNode:
             # Save image, masked image, mask, and depth image
             if SAVE_IMAGES:
                 cv.imwrite('output/MASKED{}-{}.png'.format(cls.call_index, cls.image_index), cls.model.visualize(cv.cvtColor(cv_image, cv.COLOR_RGB2BGR, cv_image), output).astype(np.uint8))
-                cv.imwrite('output/IMAGE{}-{}.png'.format(cls.call_index, cls.image_index), cv_image)
-                cv.imwrite('output/DEPTH{}-{}.png'.format(cls.call_index, cls.image_index), cv_depth_image)
-                np.save('output/MASK{}-{}.png'.format(cls.call_index, cls.image_index), masks)
 
             # Visualize the stalks features on the image
             if VISUALIZE:
@@ -385,8 +386,10 @@ class DetectNode:
                 stalk.set_cam_grasp_point(transformer.transform_world_to_cam(stalk.grasp_point))
 
             # Filter out stalks that are not within the bounds of the camera
-            # valid_stalks: list[Stalk] = [s for s in stalks if s.is_within_bounds() and s.score > 0.95]
-            valid_stalks: list[Stalk] = [s for s in stalks if s.score > 0.95]
+            valid_stalks = []
+            for s in stalks:
+                if s.score > 0.85 and s.is_within_bounds():
+                    valid_stalks.append(s)
 
             if VISUALIZE and len(stalks_features):
                 cls.visualizer.new_frame()
@@ -557,9 +560,6 @@ class DetectNode:
             # Save image, masked image, mask, and depth image
             if SAVE_IMAGES:
                 cv.imwrite('output/MASKED{}-{}.png'.format(cls.call_index, cls.image_index), cls.model.visualize(cv.cvtColor(cv_image, cv.COLOR_RGB2BGR, cv_image), output).astype(np.uint8))
-                cv.imwrite('output/IMAGE{}-{}.png'.format(cls.call_index, cls.image_index), cv_image)
-                cv.imwrite('output/DEPTH{}-{}.png'.format(cls.call_index, cls.image_index), cv_depth_image)
-                np.save('output/MASK{}-{}.png'.format(cls.call_index, cls.image_index), masks)
 
             for width in widths:
                 stalk_widths.append(width)

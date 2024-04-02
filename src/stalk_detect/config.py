@@ -39,6 +39,8 @@ MIN_X = 0.1
 MAX_X = 0.6
 MIN_Y = -0.07
 MAX_Y = 0.25
+MIN_Z = 0
+MAX_Z = 1
 
 # Model parameters
 MODEL_PATH = '/home/nimo/nimo_ws/src/NiMo-Perception/model_field_day1.pth'

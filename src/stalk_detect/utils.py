@@ -7,7 +7,7 @@ from skspatial.objects import Line as Line3D
 
 from skimage.measure import LineModelND, ransac
 
-from stalk_detect.config import INLIER_THRESHOLD, MAX_LINE_RANSAC_ITERATIONS, MAX_X, MIN_X, MAX_Y, MIN_Y, OPTIMAL_STALK_HEIGHT
+from stalk_detect.config import INLIER_THRESHOLD, MAX_LINE_RANSAC_ITERATIONS, MAX_X, MIN_X, MAX_Y, MIN_Y, MAX_Z, MIN_Z, OPTIMAL_STALK_HEIGHT
 
 # Line object, with a slope and intercept
 class Line:
@@ -142,11 +142,12 @@ class Stalk:
         self.grasp_point = Point(x=x, y=y, z=goal_height)
 
     def is_valid(self):
-        return len(self.line[0]) > 0
+        return len(self.line[0]) > 0 and self.width > 0
 
     def is_within_bounds(self) -> bool:
         return self.cam_grasp_point.x <= MAX_X and self.cam_grasp_point.x >= MIN_X and \
-            self.cam_grasp_point.y <= MAX_Y and self.cam_grasp_point.y >= MIN_Y
+            self.cam_grasp_point.y <= MAX_Y and self.cam_grasp_point.y >= MIN_Y and \
+            self.cam_grasp_point.z <= MAX_Z and self.cam_grasp_point.z >= MIN_Z
 
     def set_cam_grasp_point(self, cam_grasp_point):
         self.cam_grasp_point = cam_grasp_point
