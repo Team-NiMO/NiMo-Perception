@@ -25,7 +25,7 @@ GRIPPER_WIDTH = 0.15  # 6 inches
 GRIPPER_LENGTH_PAST_STALK = 0.075  # 3 inches
 
 OPTIMAL_STALK_DISTANCE = 0.35
-OPTIMAL_STALK_HEIGHT = 0.11  # 4 inches
+OPTIMAL_STALK_HEIGHT = 0.075  # 4 inches
 MINIMUM_MASK_AREA = 30
 
 # Distance in pixels between each feature point in a stalk
@@ -35,13 +35,15 @@ FEATURE_POINT_PIXEL_OFFSET = 10
 # Time between when the last possible frame can be received and the request needs to finish
 SERVICE_REQUEST_END_BUFFER_TIME = 0.1
 
-MIN_X = 0.1
-MAX_X = 0.6
-MIN_Y = -0.07
-MAX_Y = 0.25
+MIN_X = -1
+MAX_X = 1
+MIN_Y = -1
+MAX_Y = 1
+MIN_Z = 0
+MAX_Z = 0.6
 
 # Model parameters
-MODEL_PATH = '/home/nimo/nimo_ws/src/NiMo-Perception/model_field_day1.pth'
+MODEL_PATH = '/home/amiga/nimo_ws/src/NiMo-Perception/model_field_day1.pth'
 SCORE_THRESHOLD = 0.6
 CUDA_DEVICE_NO = -1
 
