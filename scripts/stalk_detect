@@ -381,15 +381,18 @@ class DetectNode:
             else:
                 raise ValueError('Invalid grasp point finding algorithm')
 
-            # Set the camera grasping points
             for stalk in stalks:
-                stalk.set_cam_grasp_point(transformer.transform_world_to_cam(stalk.grasp_point))
+                stalk.set_cam_grasp_point(stalk.grasp_point)
 
             # Filter out stalks that are not within the bounds of the camera
             valid_stalks = []
             for s in stalks:
                 if s.score > 0.85 and s.is_within_bounds():
                     valid_stalks.append(s)
+
+            # Set the camera grasping points
+            for stalk in stalks:
+                stalk.set_cam_grasp_point(transformer.transform_world_to_cam(stalk.grasp_point))
 
             if VISUALIZE and len(stalks_features):
                 cls.visualizer.new_frame()
@@ -430,7 +433,7 @@ class DetectNode:
                     #     break
 
                     # Filter out stalks of unsuitable width
-                    if ordered_right_to_left[i].width < 12 or ordered_right_to_left[i].width > 45:
+                    if ordered_right_to_left[i].width < 12 or ordered_right_to_left[i].width > 50:
                         is_free = False
                         break
 
@@ -540,9 +543,14 @@ class DetectNode:
         cls.image_index = -1
         start = rospy.get_rostime()
         stalk_widths: list[float] = []
+        positions: list[Point] = []
+        weights = []
+        transformers: list[Transformer] = []
 
-        # NOTE: ASSUMES ONLY ONE CORNSTALK IN FRAME -> NEED TO CONSIDER CONDITIONS FOR MULTIPLE CORNSTLALKS
         def image_depth_callback(image, depth_image):
+            nonlocal positions, transformers, weights, stalk_widths
+
+            transformer = Transformer(cls.tf_buffer.get_tf_buffer())
 
             cls.image_index += 1 # Incrememnt the number of images
 
@@ -553,16 +561,59 @@ class DetectNode:
             cv_image = cls.cv_bridge.imgmsg_to_cv2(image, desired_encoding='rgb8')
 
             # Run model, extract features, get widths
-            masks, output, _ = cls.run_detection(image)
-            stalks_features = cls.get_features(masks)
+            masks, output, scores = cls.run_detection(image)
+            stalks_features: list[list[Any]] = cls.get_features(masks)
             widths = cls.get_widths(stalks_features, masks, cv_depth_image)
 
             # Save image, masked image, mask, and depth image
             if SAVE_IMAGES:
                 cv.imwrite('output/MASKED{}-{}.png'.format(cls.call_index, cls.image_index), cls.model.visualize(cv.cvtColor(cv_image, cv.COLOR_RGB2BGR, cv_image), output).astype(np.uint8))
 
-            for width in widths:
-                stalk_widths.append(width)
+            # Add the depths to the stalk features
+            for i, stalk in enumerate(stalks_features):
+                for j in range(len(stalk)):
+                    # TODO: Use more pixels from the depth image to get a better depth (only if they are in the mask)
+
+                    # Get the depth from the depth image at this point
+                    stalks_features[i][j] = Point(x=cls.camera_width - stalk[j].x, y=cls.camera_height - stalk[j].y,
+                                                  z=cv_depth_image[int(stalk[j].y), int(stalk[j].x)] / DEPTH_SCALE)
+
+            stalks_features = cls.transform_points_to_world(stalks_features, transformer)
+
+            # Turn these features into stalks
+            stalks = []
+            for stalk, score, mask, width in zip(stalks_features, scores, masks, widths):
+                new_stalk = Stalk(points=stalk, score=score, mask=mask, width=width)
+
+                # Ensure the stalk is valid, in case RANSAC failed
+                if new_stalk.is_valid():
+                    stalks.append(new_stalk)
+
+            if GRASP_POINT_ALGO == GraspPointFindingOptions.mask_only:
+                for stalk in stalks:
+                    stalk.set_grasp_point(min_height=max([p.z for p in stalk.points]))
+            elif GRASP_POINT_ALGO == GraspPointFindingOptions.mask_projection:
+                for stalk in stalks:
+                    stalk.set_grasp_point(min_height=0)
+            else:
+                raise ValueError('Invalid grasp point finding algorithm')
+
+            # Set the camera grasping points
+            for stalk in stalks:
+                stalk.set_cam_grasp_point(transformer.transform_world_to_cam(stalk.grasp_point))
+
+            dists = []
+            for s in stalks:
+                dists.append(np.linalg.norm([s.grasp_point.x, s.grasp_point.y, s.grasp_point.z]))
+
+            id = np.argmin(np.array(dists))
+
+            rospy.logwarn(dists)
+            rospy.logwarn(dists[id])
+
+            valid_stalks = []
+            if stalks[id].score > 0.5 and dists[id] < 1:
+                stalk_widths.append(stalks[id].width)
 
         # Setup the callback for the images and depth images
         cls.sub_images = KillableSubscriber(IMAGE_TOPIC, Image)
